@@ -2,18 +2,18 @@
 
 namespace Villermen\DoctrineIdentityQueuer;
 
-use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 
 class IdentityQueuer
 {
-    /** @var EntityManager */
+    /** @var EntityManagerInterface */
     protected $entityManager;
 
     /** @var array [className => [type, AbstractIdGenerator]] */
     protected $originalGenerators = [];
 
-    public function __construct(EntityManager $entityManager)
+    public function __construct(EntityManagerInterface $entityManager)
     {
         $this->entityManager = $entityManager;
     }

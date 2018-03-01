@@ -30,8 +30,11 @@ class QueuedIdentityGenerator extends AbstractIdGenerator
 
         $identity = array_shift($this->queue);
 
+        // TODO: It will be reverted too early (I think isPostInsertGenerator() of the reverted generator will cause it to  up)
         if (count($this->queue) === 0) {
             $this->identityQueuer->revert(get_class($entity));
         }
+
+        return $identity;
     }
 }
