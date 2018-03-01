@@ -1,0 +1,19 @@
+{
+    "name": "villermen/doctrine-identity-queuer",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Villermen",
+            "email": "villermen@gmail.com"
+        }
+    ],
+    "require": {
+        "doctrine/orm": "^2.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Villermen\\DoctrineIdentityQueuer\\": "src/"
+        }
+    }
+}
