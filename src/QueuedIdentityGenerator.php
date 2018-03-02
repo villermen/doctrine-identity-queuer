@@ -7,15 +7,9 @@ use Doctrine\ORM\Id\AbstractIdGenerator;
 
 class QueuedIdentityGenerator extends AbstractIdGenerator
 {
-    /** @var IdentityQueuer */
-    protected $identityQueuer;
-
     protected $queue = [];
 
-    public function __construct(IdentityQueuer $identityQueuer)
-    {
-        $this->identityQueuer = $identityQueuer;
-    }
+    protected $lastIdentity;
 
     public function queueIdentity($identity): void
     {
@@ -24,16 +18,14 @@ class QueuedIdentityGenerator extends AbstractIdGenerator
 
     public function generate(EntityManager $entityManager, $entity)
     {
+        // Generator can't be switched mid-flush, so let's not switch at all and approach the identity generator as a fallback
         if (count($this->queue) === 0) {
-            throw new \Exception('Queue is empty.');
+            return ++$this->lastIdentity;
         }
 
         $identity = array_shift($this->queue);
 
-        // TODO: It will be reverted too early (I think isPostInsertGenerator() of the reverted generator will cause it to  up)
-        if (count($this->queue) === 0) {
-            $this->identityQueuer->revert(get_class($entity));
-        }
+        $this->lastIdentity = $identity;
 
         return $identity;
     }

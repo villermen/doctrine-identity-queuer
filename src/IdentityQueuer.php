@@ -18,9 +18,11 @@ class IdentityQueuer
         $this->entityManager = $entityManager;
     }
 
-    public function addIdentity(string $className, $identity): void
+    public function queueIdentity(string $className, $identity): void
     {
         $metadata = $this->entityManager->getClassMetadata($className);
+
+        // TODO: Only override identity generators
 
         // Add the custom generator
         if (!($metadata->idGenerator instanceof QueuedIdentityGenerator)) {
@@ -30,14 +32,14 @@ class IdentityQueuer
             ];
 
             $metadata->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_CUSTOM);
-            $metadata->setIdGenerator(new QueuedIdentityGenerator($this));
+            $metadata->setIdGenerator(new QueuedIdentityGenerator());
         }
 
         // Queue the identity
         $metadata->idGenerator->queueIdentity($identity);
     }
 
-    public function revert(string $className)
+    public function resetGenerator(string $className)
     {
         if (!isset($this->originalGenerators[$className])) {
             throw new \Exception('No original generator is registered for that class.');
