@@ -90,11 +90,10 @@ class IdentityQueuer
         // Revert generators
         foreach($originalGenerators as $className => $generator) {
             $metadata = $this->entityManager->getClassMetadata($className);
-
-            // TODO: Setting generator type back to AUTO is naive, but the original might have been resolved from AUTO and will not work for some reason
-            // If IDENTITY was obtained (even though it was originally set to AUTO), it will try to add id as a parameter for insertion without binding it
-            $metadata->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_AUTO);
             $metadata->setIdGenerator($generator);
+
+            // idGeneratorType is not changed back, as it might try to add the identity as a parameter without binding it
+            // This is probably due to the entity originally using AUTO, but being resolved to IDENTITY or something similar.
         }
 
         // Add the previously detached inserts
