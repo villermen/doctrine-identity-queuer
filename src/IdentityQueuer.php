@@ -3,6 +3,9 @@
 namespace Villermen\DoctrineIdentityQueuer;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Events;
+use Doctrine\ORM\Id\AbstractIdGenerator;
+use Doctrine\ORM\Id\AssignedGenerator;
 use Doctrine\ORM\Mapping\ClassMetadata;
 
 class IdentityQueuer
@@ -10,8 +13,10 @@ class IdentityQueuer
     /** @var EntityManagerInterface */
     protected $entityManager;
 
-    /** @var array [className => [type, AbstractIdGenerator]] */
-    protected $originalGenerators = [];
+    /** @var mixed[][] [className => [identity1, identity2]] */
+    protected $queuedIdentities;
+
+    protected $eventRegistered = false;
 
     public function __construct(EntityManagerInterface $entityManager)
     {
@@ -20,35 +25,81 @@ class IdentityQueuer
 
     public function queueIdentity(string $className, $identity): void
     {
-        $metadata = $this->entityManager->getClassMetadata($className);
-
-        // TODO: Only override identity generators
-
-        // Add the custom generator
-        if (!($metadata->idGenerator instanceof QueuedIdentityGenerator)) {
-            $this->originalGenerators[$className] = [
-                $metadata->generatorType,
-                $metadata->idGenerator
-            ];
-
-            $metadata->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_CUSTOM);
-            $metadata->setIdGenerator(new QueuedIdentityGenerator());
+        if (!isset($this->queuedIdentities[$className])) {
+            $this->queuedIdentities[$className] = [];
         }
 
-        // Queue the identity
-        $metadata->idGenerator->queueIdentity($identity);
+        $this->queuedIdentities[$className][] = $identity;
+
+        if (!$this->eventRegistered) {
+            $this->entityManager->getEventManager()->addEventListener(Events::preFlush, $this);
+
+            $this->eventRegistered = true;
+        }
     }
 
-    public function resetGenerator(string $className)
+    public function preFlush()
     {
-        if (!isset($this->originalGenerators[$className])) {
-            throw new \Exception('No original generator is registered for that class.');
+        $unitOfWork = $this->entityManager->getUnitOfWork();
+
+        // Create a list of queued inserts to check if magic needs to happen
+        $queuedInserts = [];
+        $regularInserts = [];
+        /** @var AbstractIdGenerator[] $originalGenerators Mapped by class name */
+        $originalGenerators = [];
+        foreach ($unitOfWork->getScheduledEntityInsertions() as $entity) {
+            $className = get_class($entity);
+
+            if (!isset($this->queuedIdentities[$className]) || count($this->queuedIdentities[$className]) === 0) {
+                $regularInserts[] = $entity;
+                continue;
+            }
+
+            $identity = array_shift($this->queuedIdentities[$className]);
+            $metadata = $this->entityManager->getClassMetadata($className);
+
+            // Override the identity
+            $fieldName = $metadata->getSingleIdentifierFieldName();
+            $reflectionProperty = $metadata->getReflectionProperty($fieldName);
+            $reflectionProperty->setAccessible(true);
+            $reflectionProperty->setValue($entity, $identity);
+
+            // Override the generator to accept the new identity, saving it to restore later
+            if (!($metadata->idGenerator instanceof AssignedGenerator)) {
+                $originalGenerators[$className] = $metadata->idGenerator;
+
+                $metadata->generatorType = ClassMetadata::GENERATOR_TYPE_CUSTOM;
+                $metadata->idGenerator = new AssignedGenerator();
+            }
+
+            $queuedInserts[] = $entity;
         }
 
-        $metadata = $this->entityManager->getClassMetadata($className);
-        $metadata->setIdGeneratorType($this->originalGenerators[$className][0]);
-        $metadata->setIdGenerator($this->originalGenerators[$className][1]);
+        if (count($queuedInserts) === 0) {
+            return;
+        }
 
-        unset($this->originalGenerators[$className]);
+        // Remove regular inserts from the context
+        foreach($regularInserts as $regularInsert) {
+            $this->entityManager->detach($regularInsert);
+        }
+
+        // Flush queued inserts only (or everything but the regular inserts depending on support)
+        $this->entityManager->flush($queuedInserts);
+
+        // Revert generators
+        foreach($originalGenerators as $className => $generator) {
+            $metadata = $this->entityManager->getClassMetadata($className);
+
+            // TODO: Setting generator type back to AUTO is naive, but the original might have been resolved from AUTO and will not work for some reason
+            // If IDENTITY was obtained (even though it was originally set to AUTO), it will try to add id as a parameter for insertion without binding it
+            $metadata->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_AUTO);
+            $metadata->setIdGenerator($generator);
+        }
+
+        // Add the previously detached inserts
+        foreach($regularInserts as $regularInsert) {
+            $this->entityManager->persist($regularInsert);
+        }
     }
 }
