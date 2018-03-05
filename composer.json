@@ -15,5 +15,14 @@
         "psr-4": {
             "Villermen\\DoctrineIdentityQueuer\\": "src/"
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Villermen\\DoctrineIdentityQueuer\\Test\\": "test/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^7.0",
+        "symfony/var-dumper": "^4.0"
     }
 }
