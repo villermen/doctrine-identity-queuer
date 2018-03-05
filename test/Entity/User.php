@@ -11,6 +11,7 @@ class User
 {
     /**
      * @ORM\Id()
+     * @ORM\Column(type="integer")
      * @ORM\GeneratedValue(strategy="AUTO")
      *
      * @var int
@@ -18,7 +19,7 @@ class User
     protected $id;
 
     /**
-     * @ORM\Column(type="string")
+     * @ORM\Column(type="string", unique=true)
      *
      * @var string
      */

@@ -3,6 +3,7 @@
 namespace Villermen\DoctrineIdentityQueuer\Test;
 
 use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\ORM\Tools\Setup;
 use PHPUnit\Framework\TestCase;
 use Villermen\DoctrineIdentityQueuer\IdentityQueuer;
@@ -18,20 +19,19 @@ class IdentityQueuerTest extends TestCase
 
     public function setUp(): void
     {
-        $dbParams = [
-            'user' => 'root',
-            'password' => '',
-            'host' => 'localhost',
-            'dbname' => 'doctrine-identity-queuer',
-            'driver' => 'pdo_mysql'
-        ]; // TODO: SQLite?
+        // Configure entity manager on in-memory database
+        $this->entityManager = EntityManager::create(
+            [
+                'driver' => 'pdo_sqlite',
+                'memory' => true
+            ],
+            Setup::createAnnotationMetadataConfiguration([__DIR__ . "/Entity"], true, null, null, false)
+        );
+        $schemaTool = new SchemaTool($this->entityManager);
+        $schemaTool->createSchema($this->entityManager->getMetadataFactory()->getAllMetadata());
 
-        $config = Setup::createAnnotationMetadataConfiguration([__dir__ . "/Entity"], true);
-
-        $this->entityManager = EntityManager::create($dbParams, $config);
         $this->identityQueuer = new IdentityQueuer($this->entityManager);
     }
-
 
     public function testQueueIdentity(): void
     {
