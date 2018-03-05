@@ -1,5 +1,8 @@
 # doctrine-identity-queuer
-Queue IDs for your next inserted entities.
+
+#### Queue IDs for your next inserted entities.
+
+[![CircleCI](https://circleci.com/gh/villermen/doctrine-identity-queuer.svg?style=svg)](https://circleci.com/gh/villermen/doctrine-identity-queuer)
 
 ## Description
 This package adds an `IdentityQueuer` class, that allows you to set identities (IDs) of Doctrine entities in advance.
