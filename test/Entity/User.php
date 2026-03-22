@@ -2,54 +2,23 @@
 
 namespace Villermen\DoctrineIdentityQueuer\Test\Entity;
 
-use Doctrine\ORM\Mapping as ORM;
+use Doctrine\ORM\Mapping\Column;
+use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\GeneratedValue;
+use Doctrine\ORM\Mapping\Id;
 
-/**
- * @ORM\Entity()
- */
+#[Entity]
 class User
 {
-    /**
-     * @ORM\Id()
-     * @ORM\Column(type="integer")
-     * @ORM\GeneratedValue(strategy="AUTO")
-     *
-     * @var int
-     */
-    protected $id;
+    #[Id]
+    #[Column(type: 'integer')]
+    #[GeneratedValue]
+    public int $id;
 
-    /**
-     * @ORM\Column(type="string", unique=true)
-     *
-     * @var string
-     */
-    protected $name;
+    #[Column(type: 'string', unique: true)]
+    public string $name;
 
     public function __construct(string $name)
-    {
-        $this->name = $name;
-    }
-
-    /**
-     * @return int
-     */
-    public function getId(): int
-    {
-        return $this->id;
-    }
-
-    /**
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    /**
-     * @param string $name
-     */
-    public function setName(string $name): void
     {
         $this->name = $name;
     }

@@ -3,6 +3,7 @@
 namespace Villermen\DoctrineIdentityQueuer;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Event\PreFlushEventArgs;
 use Doctrine\ORM\Events;
 use Doctrine\ORM\Id\AbstractIdGenerator;
 use Doctrine\ORM\Id\AssignedGenerator;
@@ -10,20 +11,16 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
 class IdentityQueuer
 {
-    /** @var EntityManagerInterface */
-    protected $entityManager;
+    /** @var array<class-string, list<mixed>> */
+    protected array $queuedIdentities = [];
 
-    /** @var mixed[][] [className => [identity1, identity2]] */
-    protected $queuedIdentities;
+    protected bool $eventRegistered = false;
 
-    protected $eventRegistered = false;
-
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(protected readonly EntityManagerInterface $entityManager)
     {
-        $this->entityManager = $entityManager;
     }
 
-    public function queueIdentity(string $className, $identity): void
+    public function queueIdentity(string $className, mixed $identity): void
     {
         if (!isset($this->queuedIdentities[$className])) {
             $this->queuedIdentities[$className] = [];
@@ -38,7 +35,7 @@ class IdentityQueuer
         }
     }
 
-    public function preFlush()
+    public function preFlush(PreFlushEventArgs $event): void
     {
         $unitOfWork = $this->entityManager->getUnitOfWork();
 
@@ -60,9 +57,8 @@ class IdentityQueuer
 
             // Override the identity
             $fieldName = $metadata->getSingleIdentifierFieldName();
-            $reflectionProperty = $metadata->getReflectionProperty($fieldName);
-            $reflectionProperty->setAccessible(true);
-            $reflectionProperty->setValue($entity, $identity);
+            $propertyAccessor = $metadata->getPropertyAccessor($fieldName);
+            $propertyAccessor->setValue($entity, $identity);
 
             // Override the generator to accept the new identity, saving it to restore later
             if (!($metadata->idGenerator instanceof AssignedGenerator)) {
@@ -85,7 +81,7 @@ class IdentityQueuer
         }
 
         // Flush queued inserts only (or everything but the regular inserts depending on support)
-        $this->entityManager->flush($queuedInserts);
+        $this->entityManager->flush();
 
         // Revert generators
         foreach($originalGenerators as $className => $generator) {
